@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { request as httpRequest } from 'node:http';
-import { createApp, DECISIONS_URL, MODEL } from '../server/app.js';
+import { createApp, DECISIONS_URL, MODEL, MODELS } from '../server/app.js';
 
 const key = 'sk-or-v1-this-is-a-test-secret';
 const payload = {
@@ -55,7 +55,7 @@ test('config reports key presence without revealing it', async () => {
     const base = await start({ apiKey });
     const response = await fetch(`${base}/api/config`);
     assert.equal(response.headers.get('cache-control'), 'no-store');
-    assert.deepEqual(await response.json(), { keyConfigured: Boolean(apiKey), model: MODEL });
+    assert.deepEqual(await response.json(), { keyConfigured: Boolean(apiKey), model: MODEL, models: MODELS });
   }
 });
 

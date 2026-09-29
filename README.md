@@ -1,76 +1,98 @@
-# Jev Lab
+# Jev Decision Lab
 
-A local playground for testing [Jev Latest on OpenRouter](https://openrouter.ai/~typesafe/jev-latest). Jev evaluates supplied context against explicit questions and returns structured decisions. This app uses OpenRouter's [Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-questions-and-answers-request).
+A local, seven-chapter interactive presentation for an SAP HCM developer and consultant audience. It introduces Jev, demonstrates bounded HCM decisions, and compares actual responses with two conventional LLMs. Performance charts contain measured runs only; no benchmark results are prefilled.
 
 ## Run locally
 
-Requires Node.js 22.12 or newer.
+Requires Node.js **22.12 or newer**. Keep your OpenRouter key in the project-root `.env`:
 
-1. Keep your OpenRouter key in `.env` in this project folder:
+```dotenv
+OPENROUTER_API_KEY=your_key_here
+# Optional: PORT=3000
+```
 
-   ```dotenv
-   OPENROUTER_API_KEY=your_key_here
-   ```
+```sh
+npm install
+npm run dev
+```
 
-2. Install dependencies and start the local app:
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Restart the server after changing `.env`. The server listens on `127.0.0.1`.
 
-   ```sh
-   npm install
-   npm run dev
-   ```
+The key stays on the Node server. Running a demo or comparison sends the supplied context and questions through OpenRouter to the selected provider and can consume your OpenRouter credits. Keep `.env` out of version control.
 
-3. Open [http://127.0.0.1:3000](http://127.0.0.1:3000).
+## Present the session
 
-The existing `.env` is read only by the Node server. Restart the server after changing the key. `PORT` may be set in `.env` to change the default port.
+Use the sidebar, Previous/Next buttons, or **Left/Right arrows** and **Page Up/Page Down** outside form controls. The top bar opens **Sources**, **Presenter notes**, and fullscreen mode.
 
-## Test a decision
+| Chapter                 | What to show                                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Meet Jev             | Explore Choice, Boolean, and Score using clearly marked illustrative outputs.                                                          |
+| 2. A different approach | Compare a decision specialist with general-purpose LLMs; speed, quality, and cost remain hypotheses to test.                           |
+| 3. How it works         | Step through context, question definitions, shared evaluation, and application rules. Inspect the payload.                             |
+| 4. Route an HCM case    | Keep an overtime complaint fixed and change the evidence: awaiting approval, missing payroll input, or missing payslip entry.          |
+| 5. Check a request      | Check a working-hours request for an exact date, stated weekly total, work pattern, and approval evidence, then choose a review route. |
+| 6. Put it to the test   | Run the same cases against all three configured models and inspect every attempt.                                                      |
+| 7. What did we learn?   | Compare the measured agreement, latency, and cost, then discuss a possible application architecture.                                   |
 
-Start with an example or a blank experiment. The Playground defines one question at a time, with a state (the context to evaluate) and one of three decision types:
+The live HCM chapters provide editable messages and JSON evidence, preset scenarios, the fictional policy, **Run with Jev**, **Stop**, and request/response inspection. Edited scenarios are ungraded. **Reveal authored expectation** shows the author's rationale for the original preset; it is not a model-generated explanation.
 
-- **Choice:** name the possible outcomes and describe each one.
-- **Boolean (noul):** ask a yes/no question. The result is a value between 0 and 1 indicating support for the true outcome; the displayed answer is true at 0.5 or above.
-- **Score:** describe an ordered scale from low to high. Jev returns a score over the zero-based positions on that scale.
+This is a synthetic demonstration, with no SAP connection and no real employee records. It assigns review routes or checks information presence; it does not decide employment eligibility or authorize changes. Calendar validation and exact arithmetic belong in deterministic code, outside the model checks.
 
-Enter context as text or JSON. Text is sent as `{ "text": "..." }`; JSON mode accepts an object, array, or string. Use **View request** to inspect the payload before running it.
+## Comparison setup
 
-Click **Run decision** (or press Ctrl/Cmd + Enter) to see the answer, probability distributions when supplied, timing, token usage, and raw JSON. Requests use your OpenRouter account and may consume credits.
+The model allowlist is defined in `server/evaluation.js`:
 
-## Repeatable tests and saved results
+| Model                 | OpenRouter ID                  |
+| --------------------- | ------------------------------ |
+| Jev Latest            | `~typesafe/jev-latest`         |
+| Gemini 2.5 Flash-Lite | `google/gemini-2.5-flash-lite` |
+| Claude Sonnet 5.5     | `anthropic/claude-sonnet-5.5`  |
 
-The **Test suite** applies the current question to up to 25 editable test cases. Cases run sequentially, with one API request per case, using the current text/JSON input format. Optional expected answers provide grading:
+Select either workflow or both, a **six-case quick sample** or the full set (**12 per workflow; 24 combined**), and **one or three repeats**. The displayed request count includes every model and repeat. Six cases with one repeat make 18 requests; all 24 with three repeats make 216.
 
-- Choice answers must match the expected label exactly.
-- Boolean answers use a 0.5 threshold (0.5 or above means true).
-- Scores pass when they are within ±0.5 of the expected value.
+Every model receives identical state, policy, question definitions, and permitted answer meanings. All questions for a case travel in one request. Jev uses the Decisions API; the LLMs use chat completions with a strict JSON schema and no requested explanations or self-reported confidence. Expected answers and authored rationales are withheld from all requests.
 
-Cases without expected answers are ungraded. Example labels are starting points, not a benchmark. You can stop a suite and keep its completed results.
+The LLM wrapper and inference settings are visible in the inspected request. Gemini uses temperature 0; Claude uses low reasoning effort with reasoning excluded from the response. Both use a 2,048-token completion limit. These are documented operational settings, not a claim that the model architectures perform identical work.
 
-The current experiment and last 40 runs are saved in this browser's `localStorage`. This includes inputs and results; clearing site data removes them. The app reports when browser storage is unavailable. **Run history** lets you reopen a previous experiment. **Export JSON** previews the current experiment and saved runs, with controls to copy the JSON or download `jev-lab-results.json`. Use **Copy JSON** in embedded browsers that do not support file downloads.
+Models run concurrently for each case, with one request in flight per model, rotating dispatch order, and no automatic retries. Provider load, network conditions, caching, routing, and alias updates can affect outcomes. Inspect the actual resolved model and provider for each attempt.
 
-## Production build and checks
+## Data and metric definitions
+
+`src/hcm.js` contains **24 authored synthetic cases**, including negation, missing evidence, and conflicting employee assertions. The expected labels have **not received independent human review**. They support a demonstration of agreement with an answer key, not a validated HCM accuracy claim or a held-out production benchmark. Repeating the cases measures run variation; it does not add independent examples.
+
+- **Answer agreement:** correctly matched fields divided by all labeled fields in noncancelled attempts. Choice labels match exactly; Jev Boolean probabilities use a fixed threshold of 0.5. Errors receive zero credit for every expected field.
+- **All fields correct:** the fraction of labeled noncancelled attempts where every field matches. Errors count in the denominator.
+- **Median/p95 response:** nearest-rank percentiles over successful, valid responses only. The normal timer covers the local server's provider round trip through response validation, including network overhead. Missing or invalid latency samples are excluded.
+- **Reported cost:** actual returned `usage.cost`, including known costs for errors. Missing cost is unknown, never assumed zero; the UI shows a known subtotal plus an indication of missing costs.
+- **Projected cost per 1,000:** total known billed cost divided by noncancelled attempts, multiplied by 1,000. It is unavailable if any included cost is missing and assumes the same workload mix.
+- **Cancellation:** excluded from grading, latency, and cost summaries. Stopping or closing the page cannot guarantee provider processing or billing stops; an interrupted request may have additional unreported cost.
+
+Small samples and incomplete runs do not establish a reliable ranking. Review disagreements, labels, errors, provider variability, and representative data before drawing deployment conclusions. Jev probabilities and confidence are model estimates, not correctness guarantees.
+
+## Save, recover, and inspect
+
+The comparison checkpoints every recorded attempt to this browser's `localStorage`, retaining the **last three actual sessions**. Reloading recovers an unfinished session as stopped, with completed responses preserved and an interruption notice. Unrecorded in-flight requests may still have incurred usage. Saved results are labeled recorded runs; they are not replayed as live responses.
+
+Use **Load a recorded run**, inspect individual attempts, and **Export JSON** or **Copy JSON** to preserve evidence. A full JSON panel is available for manual copying. Exports include requested and resolved models, requests, responses, expected labels, grades, usage, and timings. Clearing browser site data removes local checkpoints; storage failures are reported in the UI.
+
+**Import recording JSON** loads an exported session as a clearly marked imported recording. The importer checks the model IDs, cases, answer types, timing/cost values, and comparison coverage, then recalculates grades against the current authored labels. It cannot authenticate provider provenance. A local six-case rehearsal is available at `.test-artifacts/live-presentation-smoke.json` after the development verification; it contains actual responses and is excluded from Git.
+
+## Build, checks, and local API
 
 ```sh
 npm run build
 npm start
-```
-
-The production server serves only the compiled `dist` directory. It listens on the local machine at `127.0.0.1`.
-
-```sh
 npm test
 ```
 
-Tests use a fake provider and consume no API credits. They exercise payload validation, the upstream contract, error handling, credential redaction, local-origin restrictions, timeouts, and cancellation.
+The production server serves `dist`. The automated suite uses fake providers, without API charges. It covers request/response validation, grading, metrics, dataset consistency, timeouts, cancellation, credential redaction, and local-origin protections.
 
-## API and limits
+`GET /api/config` returns model configuration and whether a key is present, never the key. The existing `POST /api/decide` endpoint remains available for Jev payloads. `POST /api/evaluate` accepts `{ model, state, questions }` only for the configured allowlist, validates strict answer shapes, and returns normalized answers, raw response, request provenance, usage, and timing. Requests time out after 60 seconds. This is a local, single-user application.
 
-- `GET /api/config` returns the selected model and whether a key is configured. It never returns the key.
-- `POST /api/decide` accepts `{ "state": ..., "questions": { ... } }` and returns `{ "result": ..., "elapsedMs": ... }`.
-- The server always sends `~typesafe/jev-latest` to `https://openrouter.ai/api/alpha/decisions`.
-- State accepts text, a JSON object, or a JSON array, up to 128 KB and 32 nested levels. A complete request must be under 256 KB.
-- The UI sends one question per request; the local API accepts 1–24 questions. Choice questions accept 2–20 criteria, and score questions accept 2–10 ordered levels. Question instructions are limited to 4,000 characters and each criteria description to 2,000 characters.
-- Requests time out after 60 seconds. Cancelling a request stops the local wait and attempts to abort the upstream connection; it cannot guarantee provider processing or charges stop.
+## Sources
 
-Jev's Decisions interface does not offer chat conversations, token streaming, temperature, or other chat-generation controls in this app. The `latest` model alias and the alpha endpoint may change. Answers and available usage fields come directly from OpenRouter. An answer's confidence is a model estimate, not a guarantee of correctness.
-
-The API key stays on the local server. State and questions are sent to OpenRouter when you run a decision. Keep `.env` out of version control and do not place secrets in files under `public` or `src`. This app is intended for local, single-user testing.
+- [Jev Latest on OpenRouter](https://openrouter.ai/~typesafe/jev-latest)
+- [TypeSafe System One](https://docs.typesafe.ai/concepts/system-one)
+- [Multiple questions in one request](https://docs.typesafe.ai/patterns/fan-out)
+- [Jev 1.13 limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13)
+- [OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-questions-and-answers-request)
